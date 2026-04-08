@@ -77,15 +77,37 @@ def get_free_port(address: str, with_alive_sock: bool = False) -> tuple[int, soc
     Set with_alive_sock=True to keep the socket open as a port reservation,
     preventing other calls from getting the same port. The caller is
     responsible for closing the socket before the port is actually bound
-    by the target service (e.g. NCCL, uvicorn).
+    by the target service (e.g., NCCL, uvicorn).
     """
+    import random
     family = socket.AF_INET6 if is_valid_ipv6_address(address) else socket.AF_INET
 
+    # Use higher port range (30000-60000) to reduce collision with system services
+    # Add retry logic to avoid port conflicts
+    max_retries = 20
+    for _ in range(max_retries):
+        port = random.randint(30000, 60000)
+        try:
+            sock = socket.socket(family=family, type=socket.SOCK_STREAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((address, port))
+            if with_alive_sock:
+                # Call listen() to move the socket into LISTEN state, which provides
+                # stronger port reservation across processes than just bind().
+                sock.listen(1)
+                return port, sock
+            sock.close()
+            return port, None
+        except OSError:
+            continue
+
+    # Fallback to OS-assigned port if all retries fail
     sock = socket.socket(family=family, type=socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((address, 0))
     port = sock.getsockname()[1]
     if with_alive_sock:
+        sock.listen(1)
         return port, sock
     sock.close()
     return port, None

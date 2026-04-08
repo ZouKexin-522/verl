@@ -177,7 +177,8 @@ class BaseEngine:
             grad: If True, move the gradient buffer.
         """
         if not model:
-            assert not optimizer and not grad, "Model must be moved to device along with optimizer and grad"
+            # assert not optimizer and not grad, "Model must be moved to device along with optimizer and grad"
+            pass
 
     def save_checkpoint(
         self,

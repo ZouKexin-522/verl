@@ -91,9 +91,26 @@ def get_master_addr_port(master_port_range: Optional[list[int]] = None) -> tuple
     addr = ray.util.get_node_ip_address().strip("[]")
 
     if master_port_range is None:
-        with socket.socket() as s:
-            s.bind(("", 0))
-            port = s.getsockname()[1]
+        # Retry multiple times to mitigate TOCTOU race conditions where
+        # the port returned by bind(("", 0)) could be taken by the time
+        # the worker actually uses it. Using a high port range (29500-65535)
+        # reduces collision probability with system services.
+        import random
+
+        max_retries = 10
+        for _ in range(max_retries):
+            port = random.randint(29500, 65535)
+            try:
+                with socket.socket() as s:
+                    s.bind(("", port))
+                    break
+            except OSError:
+                continue
+        else:
+            # Fallback to OS-assigned port
+            with socket.socket() as s:
+                s.bind(("", 0))
+                port = s.getsockname()[1]
     else:
         port = master_port_range[0]
         while port < master_port_range[1]:

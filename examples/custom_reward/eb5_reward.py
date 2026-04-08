@@ -9,6 +9,7 @@ import requests
 import time
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
+import http.client
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from verl.utils.http_utils import http_post
@@ -115,7 +116,7 @@ class ErnieXVerifier():
                 return result["data"]["task_id"]
             except (requests.exceptions.ConnectionError,
                     requests.exceptions.Timeout,
-                    requests.exceptions.RemoteDisconnected,
+                    http.client.RemoteDisconnected,  # ← 改这里
                     requests.exceptions.HTTPError) as e:
                 if attempt < 4:  # not the last attempt
                     wait_time = (2 ** attempt)  # exponential backoff: 1, 2, 4, 8 seconds
@@ -341,7 +342,7 @@ class ErnieXVerifier():
 
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
-    
+
     config = {
         "reward_urls": [
             "http://10.11.153.88:8101/api/v1/reward/task",
@@ -352,8 +353,9 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         "default_error_reward": 0.0,
         "reward_client_name": "ernie_x_verifier",
         "reward_auth_key": "dltp_model_online:fabd04e8-c946-4933-8e7b-2d78399d2b03",
-        "max_tokens": 20480,
+        "max_tokens": 40960,
     }
     _verifier = ErnieXVerifier(config)
     reward = asyncio.run(_verifier.process(data_source, solution_str, ground_truth, extra_info))
+    print(f"[compute_score DEBUG] reward: {reward}, type: {type(reward)}, data_source: {data_source}, solution_str_len: {len(solution_str)}")
     return reward

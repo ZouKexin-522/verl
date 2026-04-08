@@ -50,6 +50,7 @@ from verl.trainer.ppo.metric_utils import (
     compute_variance_proxy_metrics,
     process_validation_metrics,
 )
+from verl.utils.http_utils import init_distributed_http_client
 from verl.trainer.ppo.reward import extract_reward
 from verl.trainer.ppo.utils import (
     Role,
@@ -280,6 +281,9 @@ class RayPPOTrainer:
             train_sampler (Optional[Sampler], optional): Sampler for the training dataset. Defaults to None.
             device_name (str, optional): Device name for training (e.g., "cuda", "cpu"). Defaults to None.
         """
+
+        # Initialize distributed HTTP client for reward computation
+        init_distributed_http_client(num_actors_per_node=1, max_connections=-1)
 
         # Store the tokenizer for text processing
         self.tokenizer = tokenizer

@@ -52,6 +52,7 @@ from verl.workers.rollout.vllm_rollout.utils import (
     extract_prompt_logprobs,
     get_vllm_max_lora_rank,
 )
+from verl.utils.http_utils import init_distributed_http_client
 
 _VLLM_VERSION = version.parse(vllm.__version__)
 
@@ -364,6 +365,9 @@ class vLLMHttpServer:
         server_args.model = server_args.model_tag
         if server_args.subparser in cmds:
             cmds[server_args.subparser].validate(server_args)
+        vllm_port_base = int(os.environ.get("VLLM_PORT", 0))
+        if vllm_port_base > 0:
+            os.environ["VLLM_PORT"] = str(vllm_port_base + self.replica_rank * 100)
 
         # 3. launch server
         if self.node_rank == 0:
